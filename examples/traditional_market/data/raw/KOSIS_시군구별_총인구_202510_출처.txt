@@ -1,0 +1,4 @@
+출처: 국가통계포털(KOSIS), 「행정구역(시군구)별 성별 인구수」(DT_1B040A3, orgId=101), 항목 총인구수(T20), 시점 2025.10
+https://kosis.kr/statHtml/statHtml.do?orgId=101&tblId=DT_1B040A3
+받은 방법: Claude + 통계청 KOSIS MCP (kosis_get_data), 2026-10-19 조회. 응답 표(293행)를 가공 없이 저장.
+시점 선택: 전통시장 표준데이터 기준일자(2025-11-10) 직전 월말.

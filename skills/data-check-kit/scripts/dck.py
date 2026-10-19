@@ -82,7 +82,8 @@ def key_check(df: pd.DataFrame, key, name: str = "df") -> dict:
     status = "유일" if out["중복키_관측치"] == 0 and na == 0 else "유일하지 않음"
     print(f"[key] {name} {key}: {status}  결측키={na:,}  중복키 관측치={out['중복키_관측치']:,}")
     if out["중복키_관측치"]:
-        print(df.loc[dup_mask].sort_values(key).head(10).to_string())
+        others = [c for c in df.columns if c not in key][:3]
+        print(df.loc[dup_mask, key + others].sort_values(key).head(10).to_string())
     return out
 
 
