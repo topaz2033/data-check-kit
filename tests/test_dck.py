@@ -45,6 +45,16 @@ mg, rep2, um = dck.merge_audit(m1, pop2, on=["시도", "시군구"], validate="m
                                 names=("시장", "인구"))
 assert rep2["관계_N:M"] == 0 and rep2["merged_rows"] == 5
 assert set(um.loc[um.쪽 == "인구에만", "시군구"]) == {"장안구", "권선구"}   # 시·구 이중 단위가 드러남
+# left join이어도 오른쪽 미매칭 행 수는 원자료 기준으로 센다(left join 결과에는 오른쪽에만 있는 행이 없다)
+assert rep2["인구_only_rows"] == 2 and rep2["시장_only_rows"] == 0
+assert rep2["인구_매칭률%"] == round(100 * 4 / 6, 2)
+
+# 기대 행 수와 다르면 멈춘다
+try:
+    flow.step(m1, m1.head(3), "기대값 시험", expect=5)
+    raise SystemExit("expect 불일치를 통과시킴")
+except ValueError:
+    pass
 
 try:
     m1.merge(pop, on="시군구", validate="many_to_one")

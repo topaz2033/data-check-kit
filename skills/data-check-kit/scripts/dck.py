@@ -116,10 +116,14 @@ class Flow:
     def step(self, before: pd.DataFrame, after: pd.DataFrame, label: str, reason: str = "",
              expect: int | None = None):
         b, a = len(before), len(after)
-        self.rows.append({"단계": label, "전": b, "후": a, "변화": a - b, "사유": reason})
         msg = f"[flow] {label}: {b:,} → {a:,} ({a - b:+,})"
+        if expect is not None and a != expect:
+            # 기대 행 수와 다르면 흐름표에 남기지 않고 멈춘다. 경고만 찍으면 다음 셀이 그대로 돈다
+            print(msg + f"  [!] 기대값 {expect:,}과 다름")
+            raise ValueError(f"{label}: 행 수 {a:,}, 기대값 {expect:,}")
         if expect is not None:
-            msg += "  기대값 일치" if a == expect else f"  [!] 기대값 {expect:,}과 다름"
+            msg += "  기대값 일치"
+        self.rows.append({"단계": label, "전": b, "후": a, "변화": a - b, "사유": reason})
         print(msg)
         return after
 
@@ -157,27 +161,33 @@ def merge_audit(left: pd.DataFrame, right: pd.DataFrame, on, how: str = "left",
 
     merged = left.merge(right, on=on, how=how, validate=validate, indicator=True)
     cnt = merged["_merge"].value_counts()
+    # 미매칭은 결합 결과가 아니라 양쪽 원자료에서 센다. left join 결과에는 오른쪽에만 있는 행이 없어서
+    # _merge로 세면 오른쪽 미매칭이 항상 0으로 나온다(Codex 교차검토 지적, 2026-10-25)
+    lo = left.merge(right[on].drop_duplicates(), on=on, how="left", indicator=True)
+    lo = lo.loc[lo._merge == "left_only", on]
+    ro = right.merge(left[on].drop_duplicates(), on=on, how="left", indicator=True)
+    ro = ro.loc[ro._merge == "left_only", on]
     rep = {
         f"{ln}_rows": len(left), f"{rn}_rows": len(right), "merged_rows": len(merged),
         "expected_rows": expected, "회계식": "일치" if expected == len(merged) else "불일치",
-        "matched_rows": int(cnt.get("both", 0)), f"{ln}_only_rows": int(cnt.get("left_only", 0)),
-        f"{rn}_only_rows": int(cnt.get("right_only", 0)),
-        # 왼쪽 관측치 가운데 오른쪽 키를 하나라도 찾은 비율
-        f"{ln}_매칭률%": round(100 * left.merge(right[on].drop_duplicates(), on=on).shape[0] / max(len(left), 1), 2),
+        "matched_rows": int(cnt.get("both", 0)),
+        # 짝을 찾지 못한 원자료 행 수(결합 방식과 무관)
+        f"{ln}_only_rows": len(lo), f"{rn}_only_rows": len(ro),
+        # 각 쪽 관측치 가운데 상대 키를 하나라도 찾은 비율
+        f"{ln}_매칭률%": round(100 * (len(left) - len(lo)) / max(len(left), 1), 2),
+        f"{rn}_매칭률%": round(100 * (len(right) - len(ro)) / max(len(right), 1), 2),
         # 결합 후 행 수 ÷ 왼쪽 행 수. 1을 넘으면 오른쪽 키 중복 때문에 왼쪽 행이 복제된 것
         "키_중복_증폭": round(len(merged) / max(len(left), 1), 4) if how == "left" else None,
         **{f"관계_{k}": v for k, v in rel.items()},
     }
-    print(f"== merge_audit {ln} LEFT JOIN {rn} on {on} (how={how}) ==")
+    print(f"== merge_audit {ln} {how.upper()} JOIN {rn} on {on} ==")
     for k, v in rep.items():
         print(f"  {k}: {v:,}" if isinstance(v, int) else f"  {k}: {v}")
     if rel["N:M"]:
         print("  [!] N:M 키가 있다. 결합 규칙에서 금지했다면 여기서 멈춘다.")
 
-    lo = left.merge(right[on].drop_duplicates(), on=on, how="left", indicator=True)
-    lo = lo.loc[lo._merge == "left_only", on].drop_duplicates().assign(쪽=f"{ln}에만")
-    ro = right.merge(left[on].drop_duplicates(), on=on, how="left", indicator=True)
-    ro = ro.loc[ro._merge == "left_only", on].drop_duplicates().assign(쪽=f"{rn}에만")
+    lo = lo.drop_duplicates().assign(쪽=f"{ln}에만")
+    ro = ro.drop_duplicates().assign(쪽=f"{rn}에만")
     unmatched = pd.concat([lo, ro], ignore_index=True)
     if len(unmatched):
         print(f"  미매칭 키 {len(unmatched)}개 (앞 {min(show, len(unmatched))}개)")

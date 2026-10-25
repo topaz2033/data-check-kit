@@ -33,8 +33,8 @@ flow = dck.Flow()
 | `dck.profile(df, name, key)` | 1 | 행·열·결측률·고유값·완전중복·경고(선행 0 소실, 결측코드, 공백) |
 | `dck.key_check(df, key)` | 1·4 | 결측키·중복키 수와 예시 |
 | `dck.code_name_map(df, code, name)` | 2 | 코드↔명칭 1:1 여부 |
-| `flow.start / flow.step(before, after, label, reason, expect)` | 4 | 단계별 행 수 기록, 기대값 대조 |
-| `dck.merge_audit(left, right, on, how, validate)` | 5 | 관계(1:1·N:1·1:N·N:M) 수, 회계식, 매칭률, 키 중복 증폭, 미매칭 목록 |
+| `flow.start / flow.step(before, after, label, reason, expect)` | 4 | 단계별 행 수 기록, 기대값 대조(다르면 멈춤) |
+| `dck.merge_audit(left, right, on, how, validate)` | 5 | 관계(1:1·N:1·1:N·N:M) 수, 회계식, 양쪽 매칭률·미매칭 행 수, 키 중복 증폭, 미매칭 목록 |
 | `dck.dist(df, cols, by)` + `dck.truncation_flags()` | 6 | 분위수·0비율·최댓값 집중, 절단 의심 신호 |
 | `dck.total_check(df, col, official)` | 6 | 합계를 공표값과 대조 |
 | `flow.table()` | 8 | 표본 흐름표 |
@@ -72,7 +72,7 @@ flow = dck.Flow()
 
 ### 5단계 — 결합 회계
 - `dck.merge_audit(..., validate="many_to_one")`처럼 3단계에서 허용한 관계를 `validate`로 강제한다. 어기면 pandas가 멈춘다.
-- 확인할 숫자: 회계식 일치 여부, 왼쪽 매칭률, 키 중복 증폭(1 초과면 행이 복제됨), N:M 수, 양쪽 미매칭 목록.
+- 확인할 숫자: 회계식 일치 여부, 양쪽 매칭률(오른쪽 미매칭은 원자료 기준으로 센다), 키 중복 증폭(1 초과면 행이 복제됨), N:M 수, 양쪽 미매칭 목록.
 - **미매칭 목록은 반드시 한 줄씩 읽고 원인을 분류한다**(표기 차이 / 개편 / 상하위 단위 / 실제로 없음).
 
 ### 6단계 — 분포·외부 대조
